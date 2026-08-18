@@ -1,10 +1,255 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Solana Dashboard</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Solana Dashboard</title>
+<style>
+  :root {
+    --bg: #0b0f14;
+    --panel: #11161d;
+    --border: #1f2733;
+    --text: #e6edf3;
+    --muted: #8b96a5;
+    --green: #14f195;
+    --purple: #9945ff;
+    --red: #ff5c5c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  header {
+    padding: 20px 24px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  header h1 {
+    margin: 0;
+    font-size: 22px;
+    background: linear-gradient(90deg, var(--purple), var(--green));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    display: inline-block;
+  }
+  header p {
+    margin: 4px 0 0;
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  /* Ticker */
+  .ticker-wrap {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    overflow: hidden;
+    white-space: nowrap;
+    padding: 10px 0;
+  }
+  .ticker-track {
+    display: inline-block;
+    animation: scroll 30s linear infinite;
+  }
+  .ticker-wrap:hover .ticker-track {
+    animation-play-state: paused;
+  }
+  .ticker-item {
+    display: inline-block;
+    padding: 0 28px;
+    font-size: 14px;
+  }
+  .ticker-item .sym { color: var(--muted); margin-right: 6px; }
+  .ticker-item .up { color: var(--green); }
+  .ticker-item .down { color: var(--red); }
+  @keyframes scroll {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+
+  /* Stats cards */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px;
+    padding: 20px 24px;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+  }
+  .card .label {
+    color: var(--muted);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 6px;
+  }
+  .card .value {
+    font-size: 22px;
+    font-weight: 600;
+  }
+  .card .sub {
+    font-size: 12px;
+    margin-top: 4px;
+  }
+
+  .status {
+    padding: 0 24px;
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  footer {
+    padding: 20px 24px 40px;
+    color: var(--muted);
+    font-size: 12px;
+    border-top: 1px solid var(--border);
+    margin-top: 20px;
+  }
+
+  .loading {
+    color: var(--muted);
+    font-size: 13px;
+    padding: 4px 24px;
+  }
+</style>
 </head>
 <body>
-  <h1>Coming soon</h1>
-  <p>My Solana ecosystem dashboard is under construction.</p>
+
+<header>
+  <h1>Solana Dashboard</h1>
+  <p>Live network stats, ecosystem TVL, and market data</p>
+</header>
+
+<div class="ticker-wrap">
+  <div class="ticker-track" id="tickerTrack">
+    <div class="ticker-item">Loading ticker…</div>
+  </div>
+</div>
+
+<div class="status" id="statusLine"></div>
+
+<div class="stats" id="statsGrid">
+  <div class="card"><div class="label">SOL Price</div><div class="value" id="solPrice">—</div><div class="sub" id="solChange"></div></div>
+  <div class="card"><div class="label">Market Cap</div><div class="value" id="solMcap">—</div></div>
+  <div class="card"><div class="label">24h Volume</div><div class="value" id="solVol">—</div></div>
+  <div class="card"><div class="label">Solana Ecosystem TVL</div><div class="value" id="solTvl">—</div><div class="sub" id="tvlChange"></div></div>
+</div>
+
+<footer>
+  Data from CoinGecko &amp; DefiLlama public APIs. Prototype build — dashboard in progress.
+</footer>
+
+<script>
+  const fmtUsd = (n, opts = {}) => {
+    if (n === null || n === undefined || isNaN(n)) return '—';
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      notation: opts.compact ? 'compact' : 'standard',
+      maximumFractionDigits: opts.decimals ?? (opts.compact ? 2 : 2)
+    }).format(n);
+  };
+
+  const fmtPct = (n) => {
+    if (n === null || n === undefined || isNaN(n)) return '';
+    const sign = n >= 0 ? '+' : '';
+    return `${sign}${n.toFixed(2)}%`;
+  };
+
+  function setStatus(msg, isError = false) {
+    const el = document.getElementById('statusLine');
+    el.textContent = msg;
+    el.style.color = isError ? '#ff5c5c' : '#8b96a5';
+  }
+
+  async function fetchJson(url) {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Request failed: ${res.status} ${url}`);
+    return res.json();
+  }
+
+  // --- Fetch CoinGecko market data for SOL + a few ecosystem tokens for the ticker ---
+  async function loadMarketData() {
+    const ids = [
+      'solana', 'jupiter-exchange-solana', 'raydium', 'jito-governance-token',
+      'pyth-network', 'bonk', 'dogwifcoin', 'render-token'
+    ].join(',');
+    const url = `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${ids}&order=market_cap_desc&price_change_percentage=24h`;
+    return fetchJson(url);
+  }
+
+  // --- Fetch Solana TVL history from DefiLlama ---
+  async function loadSolanaTvl() {
+    const url = 'https://api.llama.fi/v2/historicalChainTvl/Solana';
+    const data = await fetchJson(url);
+    return data; // array of {date, tvl}
+  }
+
+  function renderTicker(coins) {
+    const track = document.getElementById('tickerTrack');
+    const items = coins.map(c => {
+      const changeClass = (c.price_change_percentage_24h ?? 0) >= 0 ? 'up' : 'down';
+      return `<span class="ticker-item">
+        <span class="sym">${c.symbol.toUpperCase()}</span>
+        ${fmtUsd(c.current_price, { decimals: c.current_price < 1 ? 6 : 2 })}
+        <span class="${changeClass}">${fmtPct(c.price_change_percentage_24h)}</span>
+      </span>`;
+    }).join('');
+    // duplicate the list so the scroll loop is seamless
+    track.innerHTML = items + items;
+  }
+
+  function renderStats(solCoin, tvlNow, tvlPrev) {
+    document.getElementById('solPrice').textContent = fmtUsd(solCoin.current_price, { decimals: 2 });
+    const changeEl = document.getElementById('solChange');
+    const chg = solCoin.price_change_percentage_24h;
+    changeEl.textContent = fmtPct(chg) + ' (24h)';
+    changeEl.className = 'sub ' + (chg >= 0 ? 'up' : 'down');
+
+    document.getElementById('solMcap').textContent = fmtUsd(solCoin.market_cap, { compact: true });
+    document.getElementById('solVol').textContent = fmtUsd(solCoin.total_volume, { compact: true });
+    document.getElementById('solTvl').textContent = fmtUsd(tvlNow, { compact: true });
+
+    if (tvlPrev) {
+      const tvlChangePct = ((tvlNow - tvlPrev) / tvlPrev) * 100;
+      const tvlChangeEl = document.getElementById('tvlChange');
+      tvlChangeEl.textContent = fmtPct(tvlChangePct) + ' (24h)';
+      tvlChangeEl.className = 'sub ' + (tvlChangePct >= 0 ? 'up' : 'down');
+    }
+  }
+
+  async function init() {
+    setStatus('Loading live data…');
+    try {
+      const [coins, tvlHistory] = await Promise.all([
+        loadMarketData(),
+        loadSolanaTvl()
+      ]);
+
+      const solCoin = coins.find(c => c.id === 'solana');
+      renderTicker(coins);
+
+      const tvlNow = tvlHistory[tvlHistory.length - 1]?.tvl;
+      const tvlPrev = tvlHistory[tvlHistory.length - 2]?.tvl;
+      renderStats(solCoin, tvlNow, tvlPrev);
+
+      setStatus('Last updated: ' + new Date().toLocaleTimeString());
+    } catch (err) {
+      console.error(err);
+      setStatus('Failed to load data — API may be rate-limited. Retrying shortly.', true);
+    }
+  }
+
+  init();
+  // Refresh every 60 seconds
+  setInterval(init, 60000);
+</script>
+
 </body>
 </html>
