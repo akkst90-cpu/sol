@@ -404,7 +404,7 @@
 </div>
 
 <footer>
-  Data from CoinGecko, DefiLlama &amp; CryptoCompare public APIs. Prototype build — dashboard in progress.
+  Data from CoinGecko, DefiLlama &amp; Cointelegraph public feeds. Prototype build — dashboard in progress.
 </footer>
 
 <script>
@@ -690,10 +690,22 @@
   // ---------------------------------------------------------------------
   // News Feed
   // ---------------------------------------------------------------------
+  // CryptoCompare/CryptoPanic block direct browser requests (no CORS headers),
+  // so we go through rss2json (a free bridge that explicitly allows browser calls)
+  // reading Cointelegraph's Solana-tagged RSS feed.
   async function loadNews() {
-    const url = 'https://min-api.cryptocompare.com/data/v2/news/?categories=SOL&excludeCategories=Sponsored';
+    const feedUrl = encodeURIComponent('https://cointelegraph.com/rss/tag/solana');
+    const url = `https://api.rss2json.com/v1/api.json?rss_url=${feedUrl}`;
     const data = await fetchJson(url);
-    return (data.Data || []).slice(0, 12);
+    if (data.status !== 'ok' || !data.items) {
+      throw new Error('rss2json returned an error: ' + (data.message || 'unknown'));
+    }
+    return data.items.slice(0, 12).map(item => ({
+      title: item.title,
+      url: item.link,
+      source: 'Cointelegraph',
+      published_on: Math.floor(new Date(item.pubDate).getTime() / 1000)
+    }));
   }
 
   function timeAgo(unixSeconds) {
@@ -714,7 +726,7 @@
     }
     grid.innerHTML = articles.map(a => `
       <a class="news-card" href="${a.url}" target="_blank" rel="noopener">
-        <div class="news-source">${escapeHtml(a.source_info?.name || a.source || 'Unknown')}</div>
+        <div class="news-source">${escapeHtml(a.source)}</div>
         <div class="news-title">${escapeHtml(a.title)}</div>
         <div class="news-time">${timeAgo(a.published_on)}</div>
       </a>
@@ -728,7 +740,7 @@
     } catch (err) {
       console.error(err);
       document.getElementById('newsGrid').innerHTML =
-        `<div style="color: var(--red);">Failed to load news.</div>`;
+        `<div style="color: var(--red);">Failed to load news (${escapeHtml(err.message)}).</div>`;
     }
   }
 
