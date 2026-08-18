@@ -295,6 +295,44 @@
   .detail-link:hover {
     text-decoration: underline;
   }
+
+  /* News feed */
+  .news-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 14px;
+  }
+  .news-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    text-decoration: none;
+    color: var(--text);
+  }
+  .news-card:hover {
+    border-color: var(--purple);
+  }
+  .news-source {
+    color: var(--green);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 8px;
+  }
+  .news-title {
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.4;
+    margin-bottom: 10px;
+    flex-grow: 1;
+  }
+  .news-time {
+    color: var(--muted);
+    font-size: 11px;
+  }
 </style>
 </head>
 <body>
@@ -342,6 +380,13 @@
   <div class="row-count" id="rowCount"></div>
 </div>
 
+<div class="section">
+  <h2>Solana News</h2>
+  <div class="news-grid" id="newsGrid">
+    <div style="color: var(--muted);">Loading news…</div>
+  </div>
+</div>
+
 <div class="overlay" id="detailOverlay">
   <div class="detail-panel">
     <button class="detail-close" id="detailClose">&times;</button>
@@ -359,7 +404,7 @@
 </div>
 
 <footer>
-  Data from CoinGecko &amp; DefiLlama public APIs. Prototype build — dashboard in progress.
+  Data from CoinGecko, DefiLlama &amp; CryptoCompare public APIs. Prototype build — dashboard in progress.
 </footer>
 
 <script>
@@ -641,6 +686,55 @@
   initProtocols();
   // Refresh protocol list every 2 minutes (larger payload, less need for frequent refresh)
   setInterval(initProtocols, 120000);
+
+  // ---------------------------------------------------------------------
+  // News Feed
+  // ---------------------------------------------------------------------
+  async function loadNews() {
+    const url = 'https://min-api.cryptocompare.com/data/v2/news/?categories=SOL&excludeCategories=Sponsored';
+    const data = await fetchJson(url);
+    return (data.Data || []).slice(0, 12);
+  }
+
+  function timeAgo(unixSeconds) {
+    const diffMs = Date.now() - unixSeconds * 1000;
+    const mins = Math.floor(diffMs / 60000);
+    if (mins < 60) return `${mins}m ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+  }
+
+  function renderNews(articles) {
+    const grid = document.getElementById('newsGrid');
+    if (!articles.length) {
+      grid.innerHTML = `<div style="color: var(--muted);">No recent Solana news found.</div>`;
+      return;
+    }
+    grid.innerHTML = articles.map(a => `
+      <a class="news-card" href="${a.url}" target="_blank" rel="noopener">
+        <div class="news-source">${escapeHtml(a.source_info?.name || a.source || 'Unknown')}</div>
+        <div class="news-title">${escapeHtml(a.title)}</div>
+        <div class="news-time">${timeAgo(a.published_on)}</div>
+      </a>
+    `).join('');
+  }
+
+  async function initNews() {
+    try {
+      const articles = await loadNews();
+      renderNews(articles);
+    } catch (err) {
+      console.error(err);
+      document.getElementById('newsGrid').innerHTML =
+        `<div style="color: var(--red);">Failed to load news.</div>`;
+    }
+  }
+
+  initNews();
+  // Refresh news every 5 minutes
+  setInterval(initNews, 300000);
 </script>
 
 </body>
