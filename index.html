@@ -350,15 +350,16 @@
   /* Two-column layout: main widgets + sticky news sidebar */
   .layout {
     display: grid;
-    grid-template-columns: 1fr 340px;
+    grid-template-columns: 1fr 300px;
     gap: 20px;
     align-items: start;
     padding: 20px 24px;
   }
   .main-col {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+    align-items: start;
     min-width: 0;
   }
   .sidebar-col {
@@ -366,11 +367,63 @@
     top: 20px;
   }
   .widget {
-    background: transparent;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    min-width: 0;
   }
   .widget h2 {
-    margin: 0 0 12px;
-    font-size: 16px;
+    margin: 0 0 10px;
+    font-size: 13px;
+  }
+  .widget .search-box {
+    width: 100%;
+    font-size: 12px;
+    padding: 6px 10px;
+    margin-bottom: 10px;
+  }
+  .widget .filters {
+    gap: 5px;
+    margin-bottom: 10px;
+  }
+  .widget .filter-btn {
+    font-size: 11px;
+    padding: 4px 10px;
+  }
+  .widget table {
+    border: none;
+  }
+  .widget thead th {
+    font-size: 10px;
+    padding: 6px 8px;
+  }
+  .widget tbody td {
+    font-size: 12px;
+    padding: 7px 8px;
+  }
+  .widget .proto-icon {
+    width: 16px;
+    height: 16px;
+  }
+  .widget .category-tag {
+    font-size: 10px;
+    padding: 1px 6px;
+  }
+  .widget .row-count {
+    font-size: 11px;
+  }
+  .widget .load-more-btn {
+    font-size: 12px;
+    padding: 8px;
+  }
+  .col-hide-narrow {
+    display: table-cell;
+  }
+  @media (max-width: 1400px) {
+    .col-hide-narrow {
+      display: none;
+    }
   }
   .load-more-btn {
     display: block;
@@ -490,14 +543,12 @@
           <thead>
             <tr>
               <th data-key="name">Name</th>
-              <th data-key="category">Category</th>
               <th data-key="tvl">TVL</th>
               <th data-key="change_1d">24h</th>
-              <th data-key="change_7d">7d</th>
             </tr>
           </thead>
           <tbody id="protocolTableBody">
-            <tr><td colspan="5" style="color: var(--muted);">Loading protocols…</td></tr>
+            <tr><td colspan="3" style="color: var(--muted);">Loading protocols…</td></tr>
           </tbody>
         </table>
       </div>
@@ -721,15 +772,16 @@
     const tbody = document.getElementById('protocolTableBody');
 
     if (rows.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="5" style="color: var(--muted);">No protocols match.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="3" style="color: var(--muted);">No protocols match.</td></tr>`;
     } else {
       tbody.innerHTML = visibleRows.map((p, i) => `
         <tr data-idx="${i}">
-          <td><div class="proto-name">${p.logo ? `<img class="proto-icon" src="${p.logo}" onerror="this.style.display='none'">` : ''}${escapeHtml(p.name)}</div></td>
-          <td><span class="category-tag">${escapeHtml(p.category)}</span></td>
+          <td>
+            <div class="proto-name">${p.logo ? `<img class="proto-icon" src="${p.logo}" onerror="this.style.display='none'">` : ''}${escapeHtml(p.name)}</div>
+            <span class="category-tag" style="margin-top: 3px; display: inline-block;">${escapeHtml(p.category)}</span>
+          </td>
           <td>${fmtUsd(p.tvl, { compact: true })}</td>
           <td class="${(p.change_1d ?? 0) >= 0 ? 'up' : 'down'}">${p.change_1d !== undefined ? fmtPct(p.change_1d) : '—'}</td>
-          <td class="${(p.change_7d ?? 0) >= 0 ? 'up' : 'down'}">${p.change_7d !== undefined ? fmtPct(p.change_7d) : '—'}</td>
         </tr>
       `).join('');
 
@@ -829,7 +881,7 @@
     } catch (err) {
       console.error(err);
       document.getElementById('protocolTableBody').innerHTML =
-        `<tr><td colspan="5" style="color: var(--red);">Failed to load protocol data.</td></tr>`;
+        `<tr><td colspan="3" style="color: var(--red);">Failed to load protocol data.</td></tr>`;
     }
   }
 
