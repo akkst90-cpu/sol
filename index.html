@@ -306,7 +306,7 @@
     background: var(--panel);
     border: 1px solid var(--border);
     border-radius: 10px;
-    padding: 16px;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
     text-decoration: none;
@@ -314,6 +314,19 @@
   }
   .news-card:hover {
     border-color: var(--purple);
+  }
+  .news-img {
+    width: 100%;
+    height: 140px;
+    object-fit: cover;
+    background: #0b0f14;
+    display: block;
+  }
+  .news-body {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
   }
   .news-source {
     color: var(--green);
@@ -404,7 +417,7 @@
 </div>
 
 <footer>
-  Data from CoinGecko, DefiLlama &amp; Cointelegraph public feeds. Prototype build — dashboard in progress.
+  Data from CoinGecko &amp; DefiLlama public APIs. Prototype build — dashboard in progress.
 </footer>
 
 <script>
@@ -704,7 +717,8 @@
       title: item.title,
       url: item.link,
       source: 'Cointelegraph',
-      published_on: Math.floor(new Date(item.pubDate).getTime() / 1000)
+      published_on: Math.floor(new Date(item.pubDate).getTime() / 1000),
+      image: item.thumbnail || item.enclosure?.link || null
     }));
   }
 
@@ -726,9 +740,12 @@
     }
     grid.innerHTML = articles.map(a => `
       <a class="news-card" href="${a.url}" target="_blank" rel="noopener">
-        <div class="news-source">${escapeHtml(a.source)}</div>
-        <div class="news-title">${escapeHtml(a.title)}</div>
-        <div class="news-time">${timeAgo(a.published_on)}</div>
+        ${a.image ? `<img class="news-img" src="${a.image}" alt="" loading="lazy" onerror="this.style.display='none'">` : ''}
+        <div class="news-body">
+          <div class="news-source">${escapeHtml(a.source)}</div>
+          <div class="news-title">${escapeHtml(a.title)}</div>
+          <div class="news-time">${timeAgo(a.published_on)}</div>
+        </div>
       </a>
     `).join('');
   }
