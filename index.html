@@ -117,6 +117,184 @@
     font-size: 13px;
     padding: 4px 24px;
   }
+
+  /* Protocol directory */
+  .section {
+    padding: 20px 24px;
+  }
+  .section h2 {
+    margin: 0 0 12px;
+    font-size: 16px;
+    color: var(--text);
+  }
+  .filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .filter-btn {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .filter-btn.active {
+    background: var(--purple);
+    color: white;
+    border-color: var(--purple);
+  }
+  .search-box {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    width: 220px;
+    margin-bottom: 14px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  thead th {
+    text-align: left;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+  }
+  thead th:hover {
+    color: var(--text);
+  }
+  thead th.sorted::after {
+    content: ' ▾';
+    font-size: 10px;
+  }
+  tbody td {
+    padding: 10px 14px;
+    font-size: 13px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  tbody tr {
+    cursor: pointer;
+  }
+  tbody tr:hover {
+    background: rgba(255,255,255,0.03);
+  }
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+  .proto-name {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+  }
+  .proto-icon {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+  }
+  .category-tag {
+    font-size: 11px;
+    color: var(--muted);
+    background: rgba(255,255,255,0.05);
+    padding: 2px 8px;
+    border-radius: 10px;
+  }
+  .table-wrap {
+    overflow-x: auto;
+  }
+  .row-count {
+    color: var(--muted);
+    font-size: 12px;
+    margin-top: 10px;
+  }
+
+  /* Detail panel (modal-style overlay) */
+  .overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 100;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 40px 16px;
+    overflow-y: auto;
+  }
+  .overlay.open {
+    display: flex;
+  }
+  .detail-panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    max-width: 480px;
+    width: 100%;
+    padding: 24px;
+    position: relative;
+  }
+  .detail-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 20px;
+    cursor: pointer;
+  }
+  .detail-panel h3 {
+    margin: 0 0 4px;
+    font-size: 20px;
+  }
+  .detail-panel .detail-cat {
+    color: var(--muted);
+    font-size: 13px;
+    margin-bottom: 16px;
+  }
+  .detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .detail-grid .item .label {
+    color: var(--muted);
+    font-size: 11px;
+    text-transform: uppercase;
+  }
+  .detail-grid .item .value {
+    font-size: 16px;
+    font-weight: 600;
+    margin-top: 2px;
+  }
+  .detail-link {
+    display: inline-block;
+    margin-top: 8px;
+    color: var(--green);
+    font-size: 13px;
+    text-decoration: none;
+  }
+  .detail-link:hover {
+    text-decoration: underline;
+  }
 </style>
 </head>
 <body>
@@ -139,6 +317,45 @@
   <div class="card"><div class="label">Market Cap</div><div class="value" id="solMcap">—</div></div>
   <div class="card"><div class="label">24h Volume</div><div class="value" id="solVol">—</div></div>
   <div class="card"><div class="label">Solana Ecosystem TVL</div><div class="value" id="solTvl">—</div><div class="sub" id="tvlChange"></div></div>
+</div>
+
+<div class="section">
+  <h2>Solana Dapp &amp; Protocol Directory</h2>
+  <input type="text" class="search-box" id="searchBox" placeholder="Search protocols…">
+  <div class="filters" id="categoryFilters"></div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th data-key="name">Name</th>
+          <th data-key="category">Category</th>
+          <th data-key="tvl">TVL</th>
+          <th data-key="change_1d">24h</th>
+          <th data-key="change_7d">7d</th>
+        </tr>
+      </thead>
+      <tbody id="protocolTableBody">
+        <tr><td colspan="5" style="color: var(--muted);">Loading protocols…</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="row-count" id="rowCount"></div>
+</div>
+
+<div class="overlay" id="detailOverlay">
+  <div class="detail-panel">
+    <button class="detail-close" id="detailClose">&times;</button>
+    <h3 id="detailName">—</h3>
+    <div class="detail-cat" id="detailCat">—</div>
+    <div class="detail-grid">
+      <div class="item"><div class="label">TVL</div><div class="value" id="detailTvl">—</div></div>
+      <div class="item"><div class="label">24h Change</div><div class="value" id="detailChange1d">—</div></div>
+      <div class="item"><div class="label">7d Change</div><div class="value" id="detailChange7d">—</div></div>
+      <div class="item"><div class="label">Chains</div><div class="value" id="detailChains">—</div></div>
+    </div>
+    <div id="detailDesc" style="color: var(--muted); font-size: 13px; line-height: 1.5;"></div>
+    <a href="#" target="_blank" class="detail-link" id="detailLink">Visit website →</a>
+  </div>
 </div>
 
 <footer>
@@ -249,6 +466,181 @@
   init();
   // Refresh every 60 seconds
   setInterval(init, 60000);
+
+  // ---------------------------------------------------------------------
+  // Protocol Directory
+  // ---------------------------------------------------------------------
+  let allProtocols = [];
+  let currentCategory = 'All';
+  let currentSearch = '';
+  let sortKey = 'tvl';
+  let sortDir = 'desc';
+
+  async function loadProtocols() {
+    const data = await fetchJson('https://api.llama.fi/protocols');
+    // Keep only protocols active on Solana, and pull the Solana-specific TVL slice
+    return data
+      .filter(p => p.chains && p.chains.includes('Solana'))
+      .map(p => ({
+        name: p.name,
+        category: p.category || 'Other',
+        tvl: p.chainTvls && p.chainTvls['Solana'] !== undefined ? p.chainTvls['Solana'] : (p.tvl || 0),
+        change_1d: p.change_1d,
+        change_7d: p.change_7d,
+        chains: p.chains,
+        url: p.url,
+        description: p.description,
+        logo: p.logo
+      }))
+      .filter(p => p.tvl && p.tvl > 0);
+  }
+
+  function getFilteredSorted() {
+    let rows = allProtocols;
+    if (currentCategory !== 'All') {
+      rows = rows.filter(p => p.category === currentCategory);
+    }
+    if (currentSearch.trim()) {
+      const q = currentSearch.trim().toLowerCase();
+      rows = rows.filter(p => p.name.toLowerCase().includes(q));
+    }
+    rows = [...rows].sort((a, b) => {
+      let av = a[sortKey], bv = b[sortKey];
+      if (typeof av === 'string') av = av.toLowerCase();
+      if (typeof bv === 'string') bv = bv.toLowerCase();
+      if (av === undefined || av === null) av = sortDir === 'asc' ? Infinity : -Infinity;
+      if (bv === undefined || bv === null) bv = sortDir === 'asc' ? Infinity : -Infinity;
+      if (av < bv) return sortDir === 'asc' ? -1 : 1;
+      if (av > bv) return sortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return rows;
+  }
+
+  function renderCategoryFilters() {
+    const cats = ['All', ...new Set(allProtocols.map(p => p.category))].sort((a, b) => {
+      if (a === 'All') return -1;
+      if (b === 'All') return 1;
+      return a.localeCompare(b);
+    });
+    const container = document.getElementById('categoryFilters');
+    container.innerHTML = cats.slice(0, 14).map(cat =>
+      `<button class="filter-btn ${cat === currentCategory ? 'active' : ''}" data-cat="${cat}">${cat}</button>`
+    ).join('');
+    container.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        currentCategory = btn.dataset.cat;
+        renderCategoryFilters();
+        renderTable();
+      });
+    });
+  }
+
+  function renderTable() {
+    const rows = getFilteredSorted();
+    const tbody = document.getElementById('protocolTableBody');
+
+    if (rows.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5" style="color: var(--muted);">No protocols match.</td></tr>`;
+    } else {
+      tbody.innerHTML = rows.map((p, i) => `
+        <tr data-idx="${i}">
+          <td><div class="proto-name">${p.logo ? `<img class="proto-icon" src="${p.logo}" onerror="this.style.display='none'">` : ''}${escapeHtml(p.name)}</div></td>
+          <td><span class="category-tag">${escapeHtml(p.category)}</span></td>
+          <td>${fmtUsd(p.tvl, { compact: true })}</td>
+          <td class="${(p.change_1d ?? 0) >= 0 ? 'up' : 'down'}">${p.change_1d !== undefined ? fmtPct(p.change_1d) : '—'}</td>
+          <td class="${(p.change_7d ?? 0) >= 0 ? 'up' : 'down'}">${p.change_7d !== undefined ? fmtPct(p.change_7d) : '—'}</td>
+        </tr>
+      `).join('');
+
+      tbody.querySelectorAll('tr[data-idx]').forEach(tr => {
+        tr.addEventListener('click', () => openDetail(rows[parseInt(tr.dataset.idx)]));
+      });
+    }
+
+    document.getElementById('rowCount').textContent = `Showing ${rows.length} of ${allProtocols.length} Solana protocols`;
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function setupSortHeaders() {
+    document.querySelectorAll('thead th[data-key]').forEach(th => {
+      th.addEventListener('click', () => {
+        const key = th.dataset.key;
+        if (sortKey === key) {
+          sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+          sortKey = key;
+          sortDir = 'desc';
+        }
+        document.querySelectorAll('thead th').forEach(h => h.classList.remove('sorted'));
+        th.classList.add('sorted');
+        renderTable();
+      });
+    });
+  }
+
+  function openDetail(p) {
+    document.getElementById('detailName').textContent = p.name;
+    document.getElementById('detailCat').textContent = p.category;
+    document.getElementById('detailTvl').textContent = fmtUsd(p.tvl, { compact: true });
+
+    const c1 = document.getElementById('detailChange1d');
+    c1.textContent = p.change_1d !== undefined ? fmtPct(p.change_1d) : '—';
+    c1.className = 'value ' + ((p.change_1d ?? 0) >= 0 ? 'up' : 'down');
+
+    const c7 = document.getElementById('detailChange7d');
+    c7.textContent = p.change_7d !== undefined ? fmtPct(p.change_7d) : '—';
+    c7.className = 'value ' + ((p.change_7d ?? 0) >= 0 ? 'up' : 'down');
+
+    document.getElementById('detailChains').textContent = (p.chains || []).slice(0, 4).join(', ') || '—';
+    document.getElementById('detailDesc').textContent = p.description || '';
+
+    const link = document.getElementById('detailLink');
+    if (p.url) {
+      link.href = p.url;
+      link.style.display = 'inline-block';
+    } else {
+      link.style.display = 'none';
+    }
+
+    document.getElementById('detailOverlay').classList.add('open');
+  }
+
+  function closeDetail() {
+    document.getElementById('detailOverlay').classList.remove('open');
+  }
+
+  document.getElementById('detailClose').addEventListener('click', closeDetail);
+  document.getElementById('detailOverlay').addEventListener('click', (e) => {
+    if (e.target.id === 'detailOverlay') closeDetail();
+  });
+
+  document.getElementById('searchBox').addEventListener('input', (e) => {
+    currentSearch = e.target.value;
+    renderTable();
+  });
+
+  async function initProtocols() {
+    try {
+      allProtocols = await loadProtocols();
+      renderCategoryFilters();
+      setupSortHeaders();
+      renderTable();
+    } catch (err) {
+      console.error(err);
+      document.getElementById('protocolTableBody').innerHTML =
+        `<tr><td colspan="5" style="color: var(--red);">Failed to load protocol data.</td></tr>`;
+    }
+  }
+
+  initProtocols();
+  // Refresh protocol list every 2 minutes (larger payload, less need for frequent refresh)
+  setInterval(initProtocols, 120000);
 </script>
 
 </body>
