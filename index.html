@@ -1210,13 +1210,14 @@
   });
 
   // ---------------------------------------------------------------------
-  // NFT Collections widget (Magic Eden public API)
+  // NFT Collections widget (CoinGecko's NFT markets endpoint — same domain
+  // as our ticker/token widgets, which already work from the browser)
   // ---------------------------------------------------------------------
   let allNftCollections = [];
   let nftVisibleCount = 5;
 
   async function loadNftCollections() {
-    const url = 'https://api-mainnet.magiceden.dev/v2/collections?offset=0&limit=30';
+    const url = 'https://api.coingecko.com/api/v3/nfts/markets?asset_platform_id=solana&order=h24_volume_usd_desc&per_page=30&page=1';
     return fetchJson(url);
   }
 
@@ -1228,19 +1229,19 @@
     }
     const visible = allNftCollections.slice(0, nftVisibleCount);
     list.innerHTML = visible.map((c, i) => {
-      const floorSol = (c.floorPrice || 0) / 1e9;
-      const volSol = (c.volumeAll || 0) / 1e9;
+      const floorUsd = c.floor_price?.usd;
+      const changePct = c.floor_price_24h_percentage_change?.usd;
       return `
       <div class="rank-row" data-idx="${i}">
         <div class="rank-num">${i + 1}</div>
-        ${c.image ? `<img class="rank-icon" src="${c.image}" onerror="this.style.display='none'">` : `<div class="rank-icon"></div>`}
+        ${c.image?.small ? `<img class="rank-icon" src="${c.image.small}" onerror="this.style.display='none'">` : `<div class="rank-icon"></div>`}
         <div class="rank-info">
-          <div class="rank-name">${escapeHtml(c.name || c.symbol || 'Unknown')}</div>
-          <div class="rank-cat">${c.listedCount ?? 0} listed</div>
+          <div class="rank-name">${escapeHtml(c.name || 'Unknown')}</div>
+          <div class="rank-cat">Floor</div>
         </div>
         <div class="rank-metrics">
-          <div class="rank-value">${floorSol.toFixed(2)} SOL</div>
-          <div class="rank-badge neutral">Vol ${volSol >= 1000 ? (volSol / 1000).toFixed(1) + 'k' : volSol.toFixed(0)} SOL</div>
+          <div class="rank-value">${floorUsd !== undefined ? fmtUsd(floorUsd, { decimals: 2 }) : '—'}</div>
+          <div class="rank-badge ${changePct === undefined ? 'neutral' : (changePct >= 0 ? 'up' : 'down')}">${changePct !== undefined ? fmtPct(changePct) : '—'}</div>
         </div>
       </div>
     `}).join('');
