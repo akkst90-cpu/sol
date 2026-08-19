@@ -425,6 +425,81 @@
       display: none;
     }
   }
+
+  /* Ranked list rows (DappRadar-style) */
+  .rank-list {
+    display: flex;
+    flex-direction: column;
+  }
+  .rank-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 4px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+  }
+  .rank-row:last-child {
+    border-bottom: none;
+  }
+  .rank-row:hover {
+    background: rgba(255,255,255,0.03);
+  }
+  .rank-num {
+    color: var(--muted);
+    font-size: 11px;
+    width: 16px;
+    flex-shrink: 0;
+    text-align: right;
+  }
+  .rank-icon {
+    width: 26px;
+    height: 26px;
+    border-radius: 7px;
+    flex-shrink: 0;
+    background: #0b0f14;
+    object-fit: cover;
+  }
+  .rank-info {
+    min-width: 0;
+    flex-grow: 1;
+  }
+  .rank-name {
+    font-size: 12.5px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .rank-cat {
+    font-size: 10.5px;
+    color: var(--muted);
+  }
+  .rank-metrics {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    flex-shrink: 0;
+    gap: 3px;
+  }
+  .rank-value {
+    font-size: 12.5px;
+    font-weight: 600;
+  }
+  .rank-badge {
+    font-size: 10.5px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 5px;
+  }
+  .rank-badge.up {
+    background: rgba(20, 241, 149, 0.12);
+    color: var(--green);
+  }
+  .rank-badge.down {
+    background: rgba(255, 92, 92, 0.12);
+    color: var(--red);
+  }
   .load-more-btn {
     display: block;
     width: 100%;
@@ -538,19 +613,9 @@
       <h2>Solana Dapp &amp; Protocol Directory</h2>
       <input type="text" class="search-box" id="searchBox" placeholder="Search protocols…">
       <div class="filters" id="categoryFilters"></div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th data-key="name">Name</th>
-              <th data-key="tvl">TVL</th>
-              <th data-key="change_1d">24h</th>
-            </tr>
-          </thead>
-          <tbody id="protocolTableBody">
-            <tr><td colspan="3" style="color: var(--muted);">Loading protocols…</td></tr>
-          </tbody>
-        </table>
+      <div class="filters" id="sortFilters" style="margin-top: -4px;"></div>
+      <div class="rank-list" id="protocolTableBody">
+        <div style="color: var(--muted); padding: 8px 4px;">Loading protocols…</div>
       </div>
       <div class="row-count" id="rowCount"></div>
       <button class="load-more-btn" id="protocolLoadMore">Load more</button>
@@ -769,24 +834,28 @@
   function renderTable() {
     const rows = getFilteredSorted();
     const visibleRows = rows.slice(0, visibleCount);
-    const tbody = document.getElementById('protocolTableBody');
+    const list = document.getElementById('protocolTableBody');
 
     if (rows.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="3" style="color: var(--muted);">No protocols match.</td></tr>`;
+      list.innerHTML = `<div style="color: var(--muted); padding: 8px 4px;">No protocols match.</div>`;
     } else {
-      tbody.innerHTML = visibleRows.map((p, i) => `
-        <tr data-idx="${i}">
-          <td>
-            <div class="proto-name">${p.logo ? `<img class="proto-icon" src="${p.logo}" onerror="this.style.display='none'">` : ''}${escapeHtml(p.name)}</div>
-            <span class="category-tag" style="margin-top: 3px; display: inline-block;">${escapeHtml(p.category)}</span>
-          </td>
-          <td>${fmtUsd(p.tvl, { compact: true })}</td>
-          <td class="${(p.change_1d ?? 0) >= 0 ? 'up' : 'down'}">${p.change_1d !== undefined ? fmtPct(p.change_1d) : '—'}</td>
-        </tr>
+      list.innerHTML = visibleRows.map((p, i) => `
+        <div class="rank-row" data-idx="${i}">
+          <div class="rank-num">${i + 1}</div>
+          ${p.logo ? `<img class="rank-icon" src="${p.logo}" onerror="this.style.display='none'">` : `<div class="rank-icon"></div>`}
+          <div class="rank-info">
+            <div class="rank-name">${escapeHtml(p.name)}</div>
+            <div class="rank-cat">${escapeHtml(p.category)}</div>
+          </div>
+          <div class="rank-metrics">
+            <div class="rank-value">${fmtUsd(p.tvl, { compact: true })}</div>
+            <div class="rank-badge ${(p.change_1d ?? 0) >= 0 ? 'up' : 'down'}">${p.change_1d !== undefined ? fmtPct(p.change_1d) : '—'}</div>
+          </div>
+        </div>
       `).join('');
 
-      tbody.querySelectorAll('tr[data-idx]').forEach(tr => {
-        tr.addEventListener('click', () => openDetail(visibleRows[parseInt(tr.dataset.idx)]));
+      list.querySelectorAll('.rank-row').forEach(row => {
+        row.addEventListener('click', () => openDetail(visibleRows[parseInt(row.dataset.idx)]));
       });
     }
 
@@ -808,18 +877,27 @@
   }
 
   function setupSortHeaders() {
-    document.querySelectorAll('thead th[data-key]').forEach(th => {
-      th.addEventListener('click', () => {
-        const key = th.dataset.key;
+    const sortOptions = [
+      { key: 'tvl', label: 'TVL' },
+      { key: 'change_1d', label: '24h' },
+      { key: 'change_7d', label: '7d' },
+      { key: 'name', label: 'Name' }
+    ];
+    const container = document.getElementById('sortFilters');
+    container.innerHTML = sortOptions.map(opt =>
+      `<button class="filter-btn ${sortKey === opt.key ? 'active' : ''}" data-sort="${opt.key}">${opt.label} ${sortKey === opt.key ? (sortDir === 'asc' ? '↑' : '↓') : ''}</button>`
+    ).join('');
+    container.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const key = btn.dataset.sort;
         if (sortKey === key) {
           sortDir = sortDir === 'asc' ? 'desc' : 'asc';
         } else {
           sortKey = key;
           sortDir = 'desc';
         }
-        document.querySelectorAll('thead th').forEach(h => h.classList.remove('sorted'));
-        th.classList.add('sorted');
         visibleCount = PAGE_SIZE;
+        setupSortHeaders();
         renderTable();
       });
     });
@@ -881,7 +959,7 @@
     } catch (err) {
       console.error(err);
       document.getElementById('protocolTableBody').innerHTML =
-        `<tr><td colspan="3" style="color: var(--red);">Failed to load protocol data.</td></tr>`;
+        `<div style="color: var(--red); padding: 8px 4px;">Failed to load protocol data.</div>`;
     }
   }
 
