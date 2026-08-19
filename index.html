@@ -676,6 +676,8 @@
       <button class="load-more-btn" id="gainersLoadMore">Load more</button>
     </div>
 
+    <!-- NFT Collections widget: data source (Magic Eden via a free CORS bridge)
+         isn't loading reliably yet — left visible for now, to revisit later. -->
     <div class="section widget">
       <h2>NFT Collections</h2>
       <div class="rank-list" id="nftListBody">
@@ -1215,18 +1217,18 @@
   // available on the free Demo plan at any price point below ~$35/mo), and
   // Magic Eden's API blocks direct browser requests (no CORS headers) the
   // same way CryptoCompare did for news. So we route Magic Eden's data
-  // through corsproxy.io, a free bridge service, the same fix pattern used
-  // for the news feed. Note: public CORS proxies can occasionally be slow
-  // or rate-limited since they're a shared free service — if this widget
-  // becomes unreliable later, the fix is a tiny paid-tier key or a small
-  // serverless proxy of our own.
+  // through allorigins.win, a free bridge service, the same fix pattern used
+  // for the news feed. Note: public CORS proxies are a shared free resource
+  // and can occasionally be slow, rate-limited, or go down — if this widget
+  // becomes unreliable later, the real fix is a small paid-tier key or a
+  // tiny serverless proxy of our own (e.g. a GitHub Actions job).
   // ---------------------------------------------------------------------
   let allNftCollections = [];
   let nftVisibleCount = 5;
 
   async function loadNftCollections() {
     const target = encodeURIComponent('https://api-mainnet.magiceden.dev/v2/collections?offset=0&limit=30');
-    const url = `https://corsproxy.io/?url=${target}`;
+    const url = `https://api.allorigins.win/raw?url=${target}`;
     return fetchJson(url);
   }
 
