@@ -500,6 +500,42 @@
     background: rgba(255, 92, 92, 0.12);
     color: var(--red);
   }
+  .rank-badge.neutral {
+    background: rgba(255,255,255,0.06);
+    color: var(--muted);
+  }
+
+  /* Bar chart (TVL by Category) */
+  .bar-row {
+    margin-bottom: 12px;
+  }
+  .bar-row:last-child {
+    margin-bottom: 0;
+  }
+  .bar-label-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11.5px;
+    margin-bottom: 5px;
+  }
+  .bar-label-row .bar-cat {
+    color: var(--text);
+    font-weight: 500;
+  }
+  .bar-label-row .bar-val {
+    color: var(--muted);
+  }
+  .bar-track {
+    height: 7px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--purple), var(--green));
+    border-radius: 4px;
+  }
   .load-more-btn {
     display: block;
     width: 100%;
@@ -619,6 +655,41 @@
       </div>
       <div class="row-count" id="rowCount"></div>
       <button class="load-more-btn" id="protocolLoadMore">Load more</button>
+    </div>
+
+    <div class="section widget">
+      <h2>Solana Tokens</h2>
+      <div class="rank-list" id="tokenListBody">
+        <div style="color: var(--muted); padding: 8px 4px;">Loading tokens…</div>
+      </div>
+      <div class="row-count" id="tokenRowCount"></div>
+      <button class="load-more-btn" id="tokenLoadMore">Load more</button>
+    </div>
+
+    <div class="section widget">
+      <h2>Top Movers</h2>
+      <div class="filters" id="gainersToggle"></div>
+      <div class="rank-list" id="gainersListBody">
+        <div style="color: var(--muted); padding: 8px 4px;">Loading…</div>
+      </div>
+      <div class="row-count" id="gainersRowCount"></div>
+      <button class="load-more-btn" id="gainersLoadMore">Load more</button>
+    </div>
+
+    <div class="section widget">
+      <h2>NFT Collections</h2>
+      <div class="rank-list" id="nftListBody">
+        <div style="color: var(--muted); padding: 8px 4px;">Loading collections…</div>
+      </div>
+      <div class="row-count" id="nftRowCount"></div>
+      <button class="load-more-btn" id="nftLoadMore">Load more</button>
+    </div>
+
+    <div class="section widget">
+      <h2>TVL by Category</h2>
+      <div id="categoryChartBody">
+        <div style="color: var(--muted); padding: 8px 4px;">Loading…</div>
+      </div>
     </div>
 
   </div>
@@ -956,16 +1027,252 @@
       renderCategoryFilters();
       setupSortHeaders();
       renderTable();
+      renderCategoryChart();
     } catch (err) {
       console.error(err);
       document.getElementById('protocolTableBody').innerHTML =
         `<div style="color: var(--red); padding: 8px 4px;">Failed to load protocol data.</div>`;
+      document.getElementById('categoryChartBody').innerHTML =
+        `<div style="color: var(--red); padding: 8px 4px;">Failed to load chart data.</div>`;
     }
   }
 
   initProtocols();
   // Refresh protocol list every 2 minutes (larger payload, less need for frequent refresh)
   setInterval(initProtocols, 120000);
+
+  // ---------------------------------------------------------------------
+  // TVL by Category (bar chart, built from the protocol data above)
+  // ---------------------------------------------------------------------
+  function getCategoryTotals() {
+    const totals = {};
+    allProtocols.forEach(p => {
+      totals[p.category] = (totals[p.category] || 0) + p.tvl;
+    });
+    return Object.entries(totals)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8);
+  }
+
+  function renderCategoryChart() {
+    const data = getCategoryTotals();
+    const container = document.getElementById('categoryChartBody');
+    if (!data.length) {
+      container.innerHTML = `<div style="color: var(--muted); padding: 8px 4px;">No category data.</div>`;
+      return;
+    }
+    const max = data[0][1];
+    container.innerHTML = data.map(([cat, val]) => `
+      <div class="bar-row">
+        <div class="bar-label-row">
+          <span class="bar-cat">${escapeHtml(cat)}</span>
+          <span class="bar-val">${fmtUsd(val, { compact: true })}</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill" style="width: ${((val / max) * 100).toFixed(1)}%"></div></div>
+      </div>
+    `).join('');
+  }
+
+  // ---------------------------------------------------------------------
+  // Solana Tokens widget
+  // ---------------------------------------------------------------------
+  let allTokens = [];
+  let tokenVisibleCount = 5;
+  const TOKEN_PAGE_SIZE = 5;
+
+  async function loadTokens() {
+    const url = 'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&category=solana-ecosystem&order=market_cap_desc&per_page=100&page=1&price_change_percentage=24h';
+    return fetchJson(url);
+  }
+
+  function renderTokenList() {
+    const list = document.getElementById('tokenListBody');
+    if (!allTokens.length) {
+      list.innerHTML = `<div style="color: var(--muted); padding: 8px 4px;">No tokens found.</div>`;
+      return;
+    }
+    const visible = allTokens.slice(0, tokenVisibleCount);
+    list.innerHTML = visible.map((t, i) => `
+      <div class="rank-row" data-idx="${i}">
+        <div class="rank-num">${i + 1}</div>
+        ${t.image ? `<img class="rank-icon" src="${t.image}" onerror="this.style.display='none'">` : `<div class="rank-icon"></div>`}
+        <div class="rank-info">
+          <div class="rank-name">${escapeHtml(t.name)}</div>
+          <div class="rank-cat">${t.symbol.toUpperCase()}</div>
+        </div>
+        <div class="rank-metrics">
+          <div class="rank-value">${fmtUsd(t.current_price, { decimals: t.current_price < 1 ? 6 : 2 })}</div>
+          <div class="rank-badge ${(t.price_change_percentage_24h ?? 0) >= 0 ? 'up' : 'down'}">${t.price_change_percentage_24h !== undefined ? fmtPct(t.price_change_percentage_24h) : '—'}</div>
+        </div>
+      </div>
+    `).join('');
+
+    document.getElementById('tokenRowCount').textContent = `Showing ${visible.length} of ${allTokens.length} tokens`;
+    const btn = document.getElementById('tokenLoadMore');
+    if (tokenVisibleCount >= allTokens.length) {
+      btn.style.display = 'none';
+    } else {
+      btn.style.display = 'block';
+      btn.textContent = `Load more (${allTokens.length - tokenVisibleCount} remaining)`;
+    }
+  }
+
+  document.getElementById('tokenLoadMore').addEventListener('click', () => {
+    tokenVisibleCount += TOKEN_PAGE_SIZE;
+    renderTokenList();
+  });
+
+  async function initTokens() {
+    try {
+      allTokens = await loadTokens();
+      renderTokenList();
+      renderGainersLosers();
+    } catch (err) {
+      console.error(err);
+      const msg = `<div style="color: var(--red); padding: 8px 4px;">Failed to load tokens (${escapeHtml(err.message)}).</div>`;
+      document.getElementById('tokenListBody').innerHTML = msg;
+      document.getElementById('gainersListBody').innerHTML = msg;
+    }
+  }
+
+  initTokens();
+  setInterval(initTokens, 120000);
+
+  // ---------------------------------------------------------------------
+  // Top Movers (gainers/losers) widget — reuses allTokens from above
+  // ---------------------------------------------------------------------
+  let gainersMode = 'gainers';
+  let gainersVisibleCount = 5;
+
+  function renderGainersToggle() {
+    const options = [
+      { key: 'gainers', label: 'Top Gainers' },
+      { key: 'losers', label: 'Top Losers' }
+    ];
+    const container = document.getElementById('gainersToggle');
+    container.innerHTML = options.map(opt =>
+      `<button class="filter-btn ${gainersMode === opt.key ? 'active' : ''}" data-mode="${opt.key}">${opt.label}</button>`
+    ).join('');
+    container.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        gainersMode = btn.dataset.mode;
+        gainersVisibleCount = 5;
+        renderGainersToggle();
+        renderGainersLosers();
+      });
+    });
+  }
+  renderGainersToggle();
+
+  function renderGainersLosers() {
+    const list = document.getElementById('gainersListBody');
+    const filtered = allTokens.filter(t => t.price_change_percentage_24h !== null && t.price_change_percentage_24h !== undefined);
+    const sorted = [...filtered].sort((a, b) =>
+      gainersMode === 'gainers'
+        ? b.price_change_percentage_24h - a.price_change_percentage_24h
+        : a.price_change_percentage_24h - b.price_change_percentage_24h
+    );
+
+    if (!sorted.length) {
+      list.innerHTML = `<div style="color: var(--muted); padding: 8px 4px;">No data yet.</div>`;
+      return;
+    }
+
+    const visible = sorted.slice(0, gainersVisibleCount);
+    list.innerHTML = visible.map((t, i) => `
+      <div class="rank-row" data-idx="${i}">
+        <div class="rank-num">${i + 1}</div>
+        ${t.image ? `<img class="rank-icon" src="${t.image}" onerror="this.style.display='none'">` : `<div class="rank-icon"></div>`}
+        <div class="rank-info">
+          <div class="rank-name">${escapeHtml(t.name)}</div>
+          <div class="rank-cat">${t.symbol.toUpperCase()}</div>
+        </div>
+        <div class="rank-metrics">
+          <div class="rank-value">${fmtUsd(t.current_price, { decimals: t.current_price < 1 ? 6 : 2 })}</div>
+          <div class="rank-badge ${t.price_change_percentage_24h >= 0 ? 'up' : 'down'}">${fmtPct(t.price_change_percentage_24h)}</div>
+        </div>
+      </div>
+    `).join('');
+
+    document.getElementById('gainersRowCount').textContent = `Showing ${visible.length} of ${sorted.length}`;
+    const btn = document.getElementById('gainersLoadMore');
+    if (gainersVisibleCount >= sorted.length) {
+      btn.style.display = 'none';
+    } else {
+      btn.style.display = 'block';
+      btn.textContent = `Load more (${sorted.length - gainersVisibleCount} remaining)`;
+    }
+  }
+
+  document.getElementById('gainersLoadMore').addEventListener('click', () => {
+    gainersVisibleCount += 5;
+    renderGainersLosers();
+  });
+
+  // ---------------------------------------------------------------------
+  // NFT Collections widget (Magic Eden public API)
+  // ---------------------------------------------------------------------
+  let allNftCollections = [];
+  let nftVisibleCount = 5;
+
+  async function loadNftCollections() {
+    const url = 'https://api-mainnet.magiceden.dev/v2/collections?offset=0&limit=30';
+    return fetchJson(url);
+  }
+
+  function renderNftList() {
+    const list = document.getElementById('nftListBody');
+    if (!allNftCollections.length) {
+      list.innerHTML = `<div style="color: var(--muted); padding: 8px 4px;">No collections found.</div>`;
+      return;
+    }
+    const visible = allNftCollections.slice(0, nftVisibleCount);
+    list.innerHTML = visible.map((c, i) => {
+      const floorSol = (c.floorPrice || 0) / 1e9;
+      const volSol = (c.volumeAll || 0) / 1e9;
+      return `
+      <div class="rank-row" data-idx="${i}">
+        <div class="rank-num">${i + 1}</div>
+        ${c.image ? `<img class="rank-icon" src="${c.image}" onerror="this.style.display='none'">` : `<div class="rank-icon"></div>`}
+        <div class="rank-info">
+          <div class="rank-name">${escapeHtml(c.name || c.symbol || 'Unknown')}</div>
+          <div class="rank-cat">${c.listedCount ?? 0} listed</div>
+        </div>
+        <div class="rank-metrics">
+          <div class="rank-value">${floorSol.toFixed(2)} SOL</div>
+          <div class="rank-badge neutral">Vol ${volSol >= 1000 ? (volSol / 1000).toFixed(1) + 'k' : volSol.toFixed(0)} SOL</div>
+        </div>
+      </div>
+    `}).join('');
+
+    document.getElementById('nftRowCount').textContent = `Showing ${visible.length} of ${allNftCollections.length} collections`;
+    const btn = document.getElementById('nftLoadMore');
+    if (nftVisibleCount >= allNftCollections.length) {
+      btn.style.display = 'none';
+    } else {
+      btn.style.display = 'block';
+      btn.textContent = `Load more (${allNftCollections.length - nftVisibleCount} remaining)`;
+    }
+  }
+
+  document.getElementById('nftLoadMore').addEventListener('click', () => {
+    nftVisibleCount += 5;
+    renderNftList();
+  });
+
+  async function initNftCollections() {
+    try {
+      allNftCollections = await loadNftCollections();
+      renderNftList();
+    } catch (err) {
+      console.error(err);
+      document.getElementById('nftListBody').innerHTML =
+        `<div style="color: var(--red); padding: 8px 4px;">Failed to load NFT data (${escapeHtml(err.message)}).</div>`;
+    }
+  }
+
+  initNftCollections();
+  setInterval(initNftCollections, 180000);
 
   // ---------------------------------------------------------------------
   // News Feed
